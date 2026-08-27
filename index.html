@@ -338,7 +338,7 @@
       <span>·</span>
       <span>Lane: Refresh / Content Opportunity Scoring</span>
       <span>·</span>
-      <span class="status-pill">Draft — baseline + model complete</span>
+      <span class="status-pill">Complete — all sections shipped</span>
     </div>
   </header>
 
@@ -350,6 +350,7 @@
       <li><a href="#data">Data</a></li>
       <li><a href="#method">Methodology</a></li>
       <li><a href="#results">Results</a></li>
+      <li><a href="#validation">Validation Rigor</a></li>
       <li><a href="#limits">Limitations</a></li>
       <li><a href="#recs">Recommendations</a></li>
       <li><a href="#repro">Reproducibility</a></li>
@@ -400,10 +401,11 @@
       <thead><tr><th>Signal</th><th>Verdict</th><th>Finding</th></tr></thead>
       <tbody>
         <tr><td>Staleness → decline<br><span class="mono">days_since_last_update ≥ 180</span></td><td>Opposite</td><td class="num">Stale pages declined <em>less</em> often (47.1%, n=174) than non-stale pages (54.2%, n=29,826)</td></tr>
-        <tr><td>CTR vs. position tier</td><td>Confirmed</td><td class="num">Mean CTR fell cleanly by tier: top_3 1.48 → page_1 0.65 → striking 0.32 → page_3_5 0.22</td></tr>
+        <tr><td>CTR vs. position tier</td><td>Confirmed</td><td class="num">Mean CTR fell cleanly by tier: top_3 1.48 → page_1 0.65 → striking 0.32 → page_3_5 0.22 → deep 0.15</td></tr>
+        <tr><td>Word count → decline</td><td>Opposite (of common belief)</td><td class="num">Decline rate <em>rose</em> with length: &lt;1K words 20.7% → 3K+ words 59.5% (association, not causal)</td></tr>
       </tbody>
     </table>
-    <p>The staleness signal — the intuition behind FlyRank's own refresh-flag logic — did not hold up on this data and was dropped rather than forced into the rule. This negative result is treated as a finding, not a failure: it is exactly the kind of check a fixed rule skips and a data-grounded one does not.</p>
+    <p>The staleness signal — the intuition behind FlyRank's own refresh-flag logic — did not hold up on this data and was dropped rather than forced into the rule. This negative result is treated as a finding, not a failure: it is exactly the kind of check a fixed rule skips and a data-grounded one does not. The word-count result was equally counter-intuitive: longer pages declined <em>more</em> often here, most plausibly reflecting harder competition on deep, comprehensive pages rather than any quality effect of length itself.</p>
 
     <h3>Baseline rule</h3>
     <div class="flow">score  = (tier_avg_ctr − page_ctr) <span class="arrow">×</span> impressions_90d
@@ -462,8 +464,40 @@ action      = "review_ctr_and_metadata"</div>
     <p>The ten highest-scoring pages under the baseline rule all sit in strong ranking positions (<code>top_3</code> or <code>page_1</code>) with click-through rates far below their tier's average — several under 0.10 against tier averages near 0.65–1.48. Two of the top twenty warrant a second look before acting: one page shows a CTR of 0.01 at a top-3 position with over 500,000 impressions, and another shows an exact 0.00 CTR on nearly 209,000 impressions. Both are flagged for manual verification against raw click logs rather than immediate action, since numbers this extreme are as likely to reflect a tracking issue as a genuine content problem.</p>
   </section>
 
+  <section id="validation">
+    <div class="section-head"><span class="section-num">06</span><h2>Validation Rigor</h2></div>
+    <p>Two additional checks were run specifically to stress-test this project's own honesty, mirroring the same audit applied earlier to FlyRank's public research paper.</p>
+
+    <h3>Split design: does the split itself inflate the result?</h3>
+    <table>
+      <thead><tr><th>Split type</th><th>Precision@50</th></tr></thead>
+      <tbody>
+        <tr><td>Naive random split (rows mixed across clients)</td><td class="num">0.98</td></tr>
+        <tr><td>Client-holdout split (honest — used everywhere else in this report)</td><td class="num">0.74</td></tr>
+      </tbody>
+    </table>
+    <p>A plain random split on the same model and features produced Precision@50 = 0.98 — nearly perfect, and almost certainly misleading. Under that split, pages from the same client can sit in both train and test, letting the model partly memorize client-specific patterns rather than learn a signal that generalizes to a new client. The 24-point gap between 0.98 and 0.74 is treated as a warning: any single "great" number should prompt the question "what split produced this?" before it is trusted or published.</p>
+
+    <h3>Leakage audit: does the honest feature set actually leak?</h3>
+    <table>
+      <thead><tr><th>Feature set</th><th>AUC</th></tr></thead>
+      <tbody>
+        <tr><td>Clean feature set (7 features, no label-derived fields)</td><td class="num">0.630</td></tr>
+        <tr><td>Same set + <code>trend_pct</code> deliberately added</td><td class="num">1.000</td></tr>
+      </tbody>
+    </table>
+    <p>Adding <code>trend_pct</code> — the exact field the label is computed from — pushed AUC from an honest 0.630 to a suspicious 1.000, confirming the leak-detection method works and that <code>trend_pct</code> was correctly excluded from every feature set used elsewhere in this project. The overlap check between the seven production features and the label-derived fields (<code>trend_direction</code>, <code>trend_pct</code>) returned an empty set.</p>
+
+    <h3>Applying the same scrutiny to the source research paper</h3>
+    <p>The same audit discipline was turned on FlyRank's own public research paper, <em>The State of AI-Driven SEO</em> (April 2026). Two of its findings were reviewed with a constructive methodology question rather than taken at face value:</p>
+    <ul>
+      <li><strong>Freshness Multiplier claim (52× impression lift):</strong> this figure comes from a cohort of only 802 pages with just 21 declining — small enough that the multiplier could be driven by a handful of outlier pages rather than a stable pattern, and it does not appear in the paper's own significance-testing table alongside its other six tested claims.</li>
+      <li><strong>Growth Prediction model (90% same-brand vs. 75% new-brand accuracy):</strong> a 15-point accuracy drop between same-brand and new-brand evaluation is the same shape of problem this report found in its own model (the 0.98-vs-0.74 split gap above) — raising a fair question about whether the "same-brand, new pages" evaluation used a split strict enough to rule out near-duplicate pages leaking across train and test.</li>
+    </ul>
+  </section>
+
   <section id="limits">
-    <div class="section-head"><span class="section-num">06</span><h2>Limitations &amp; Honest Framing</h2></div>
+    <div class="section-head"><span class="section-num">07</span><h2>Limitations &amp; Honest Framing</h2></div>
     <ul>
       <li><strong>Proxy label, not a future outcome.</strong> <code>is_declining_label</code> is a current-window bucket. A stronger, leakage-checked future-window label (prior 90 days → next 30 days) is planned but not yet built.</li>
       <li><strong>Unbalanced panel.</strong> Only 9 of 70 warehouse clients have 12+ months of history; cross-client comparisons in a single month mix clients with very different amounts of context.</li>
@@ -476,7 +510,7 @@ action      = "review_ctr_and_metadata"</div>
   </section>
 
   <section id="recs">
-    <div class="section-head"><span class="section-num">07</span><h2>Ranked Recommendations (Action Playbook)</h2></div>
+    <div class="section-head"><span class="section-num">08</span><h2>Ranked Recommendations (Action Playbook)</h2></div>
     <p>The trained Random Forest model was applied across the full eligible slice of the starter dataset, producing a scored, ranked queue of 20,018 pages with an explicit reason code and suggested action per page:</p>
 
     <div class="stat-row">
@@ -505,22 +539,25 @@ action      = "review_ctr_and_metadata"</div>
   </section>
 
   <section id="repro">
-    <div class="section-head"><span class="section-num">08</span><h2>Reproducibility</h2></div>
+    <div class="section-head"><span class="section-num">09</span><h2>Reproducibility</h2></div>
     <p>Every step in this report is reproducible from the notebooks in the linked repository:</p>
     <ul>
       <li><code>work/notebooks/w01_research_question.ipynb</code> — lane choice and framing</li>
       <li><code>work/notebooks/w02_ml_task_framing.ipynb</code> — task type, target, and success metric</li>
       <li><code>work/notebooks/w03_data_contract.ipynb</code> — data contract, verification queries, leakage trap</li>
+      <li><code>work/notebooks/w03_feature_leakage_check.ipynb</code> — full feature vector, per-feature availability notes, deliberate leak test</li>
+      <li><code>work/notebooks/w04_signal_audit.ipynb</code> — distribution check, three signal verdicts, flag-linked staleness test</li>
       <li><code>work/notebooks/w04_baseline_score.ipynb</code> — signal audit, baseline rule, ranked queue</li>
       <li><code>work/notebooks/w05_model.ipynb</code> — Random Forest model, client-holdout validation, baseline comparison, feature importance</li>
       <li><code>work/notebooks/w06_validation_audit.ipynb</code> — research paper methodology audit, before/after split comparison, leakage audit, claim rewrite</li>
       <li><code>work/notebooks/w07_action_playbook.ipynb</code> — final ranked action queue, intended use and limits, monitoring triggers</li>
     </ul>
+    <p>A full rubric-format writeup covering problem framing, data safety, baseline, model, evaluation, interpretation, recommendation, and reproducibility is committed at <code>work/capstone_report.md</code>.</p>
     <p>Repository: <a href="https://github.com/neha-raniii/flyrank-ml-internship" target="_blank">github.com/neha-raniii/flyrank-ml-internship</a></p>
   </section>
 
   <footer id="ack">
-    <div class="section-head" style="margin-bottom:10px;"><span class="section-num">09</span><h2 style="font-size:17px;">Acknowledgments &amp; Data Credit</h2></div>
+    <div class="section-head" style="margin-bottom:10px;"><span class="section-num">10</span><h2 style="font-size:17px;">Acknowledgments &amp; Data Credit</h2></div>
     <p>Built on the FlyRank ML Internship dataset — <a href="https://flyrank.ai" target="_blank">flyrank.ai</a>.</p>
     <p class="cred">This is a decision-support research draft produced as part of the FlyRank ML Internship, Applied Search Intelligence track. It contains no client names, domains, URLs, or private query data. All findings are observational and directional, not causal.</p>
   </footer>
