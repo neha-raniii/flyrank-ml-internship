@@ -477,12 +477,31 @@ action      = "review_ctr_and_metadata"</div>
 
   <section id="recs">
     <div class="section-head"><span class="section-num">07</span><h2>Ranked Recommendations (Action Playbook)</h2></div>
-    <p>Based on the baseline rule, the review team's next step for top-flagged pages:</p>
+    <p>The trained Random Forest model was applied across the full eligible slice of the starter dataset, producing a scored, ranked queue of 20,018 pages with an explicit reason code and suggested action per page:</p>
+
+    <div class="stat-row">
+      <div class="stat"><div class="stat-num">20,018</div><div class="stat-label">pages scored and ranked</div></div>
+      <div class="stat"><div class="stat-num">11,294</div><div class="stat-label">flagged high_risk_decline</div></div>
+      <div class="stat"><div class="stat-num">1,115</div><div class="stat-label">flagged ctr_below_expected</div></div>
+    </div>
+
+    <table>
+      <thead><tr><th>Reason code</th><th>Pages</th><th>Suggested action</th></tr></thead>
+      <tbody>
+        <tr><td>high_risk_decline</td><td class="num">11,294</td><td>review_content</td></tr>
+        <tr><td>monitor</td><td class="num">7,562</td><td>monitor</td></tr>
+        <tr><td>ctr_below_expected</td><td class="num">1,115</td><td>review_ctr_and_metadata</td></tr>
+        <tr><td>high_risk_stale_visible</td><td class="num">47</td><td>review_and_refresh</td></tr>
+      </tbody>
+    </table>
+
+    <p>Each recommendation is scoped to what this data can actually support:</p>
     <ol class="rec-list">
       <li><span class="rec-rank">01</span> Review title and meta description on the highest-scoring pages first — strong position with weak CTR most often points to a mismatch between what the snippet promises and what the searcher expects.</li>
       <li><span class="rec-rank">02</span> Before editing, sanity-check any page with a near-zero CTR against raw click logs — extreme values are as likely to be a tracking artifact as a real content problem.</li>
-      <li><span class="rec-rank">03</span> Treat this list as a starting point for review, not a work order — every recommendation carries a "what would make this wrong" note in the underlying notebook, and a reviewer should check it before acting.</li>
+      <li><span class="rec-rank">03</span> Treat this list as a starting point for review, not a work order — with a validated Precision@50 of 0.74, roughly 1 in 4 top-ranked pages will still be a false positive, so every recommendation needs a human check before action is taken.</li>
     </ol>
+    <p>The full ranked queue and a JSON summary of these figures are committed to the repository at <code>work/outputs/action_playbook_summary.json</code>, generated from <code>work/notebooks/w07_action_playbook.ipynb</code>.</p>
   </section>
 
   <section id="repro">
@@ -494,6 +513,8 @@ action      = "review_ctr_and_metadata"</div>
       <li><code>work/notebooks/w03_data_contract.ipynb</code> — data contract, verification queries, leakage trap</li>
       <li><code>work/notebooks/w04_baseline_score.ipynb</code> — signal audit, baseline rule, ranked queue</li>
       <li><code>work/notebooks/w05_model.ipynb</code> — Random Forest model, client-holdout validation, baseline comparison, feature importance</li>
+      <li><code>work/notebooks/w06_validation_audit.ipynb</code> — research paper methodology audit, before/after split comparison, leakage audit, claim rewrite</li>
+      <li><code>work/notebooks/w07_action_playbook.ipynb</code> — final ranked action queue, intended use and limits, monitoring triggers</li>
     </ul>
     <p>Repository: <a href="https://github.com/neha-raniii/flyrank-ml-internship" target="_blank">github.com/neha-raniii/flyrank-ml-internship</a></p>
   </section>
