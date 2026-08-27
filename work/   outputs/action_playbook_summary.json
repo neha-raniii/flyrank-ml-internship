@@ -1,0 +1,13 @@
+{
+  "total_pages_scored": 20018,
+  "reason_code_counts": {
+    "high_risk_decline": 11294,
+    "monitor": 7562,
+    "ctr_below_expected": 1115,
+    "high_risk_stale_visible": 47
+  },
+  "model_precision_at_50": 0.74,
+  "baseline_precision_at_50": 0.56,
+  "validation_method": "client_holdout_group_split",
+  "dataset": "starter_30k_content_refresh_anonymized"
+}
